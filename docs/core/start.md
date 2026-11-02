@@ -243,12 +243,14 @@ Tasks, picked space > machine > Everywhere:
   per-user temp folder. `~/` expands to the agent machine's home. `$TMPDIR` expands to the core's own real temp
   folder when the main machine is a Mac, and is left out on Linux and on other machines (so `$TMPDIR/..` never
   becomes `/`). `none` (or an empty value) passes an empty list, which also clears any list in the human's Codex configuration.
-  Every other folder outside the worktree stays read-only.
+  These are added to the worktree and Codex's own defaults (`/tmp` and `$TMPDIR` stay writable); every other folder
+  stays read-only.
 - **Codex escalations** (`task.escalations`): `refuse` (the default) launches with `--ask-for-approval never`, so a
   command the sandbox blocks fails back to the agent, which works around it or reports it, and the task never sits
   in Needs you on an approval prompt. `ask me` keeps `on-request`, so approvals reach the chat as before.
 
-Coordinators keep `on-request` and no extra roots. Nothing is written to `~/.codex/config.toml`, so the human's own
+Coordinators keep `on-request` and get no roots added by Shepherdr (a list in the human's Codex configuration still
+applies to them). Nothing is written to `~/.codex/config.toml`, so the human's own
 interactive Codex keeps its own settings; a `writable_roots` list there is replaced, not merged, for task launches.
 The launch flow is in [the agent launch state chart](../state-charts/agent-launch.md).
 
