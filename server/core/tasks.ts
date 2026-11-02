@@ -106,11 +106,15 @@ export class CoreTasks {
   get(id: string) { return this.source.store.get<CoreTask>('task', id) }
   forChat(chat: string) { return this.all().find(task => task.chat === chat || `${task.id}/Reviewer` === chat || chat.startsWith(`${task.id}/Reviewer-`)) }
   private save(task: CoreTask) { task.updatedAt = Date.now(); this.source.store.set('task', task.id, task); this.source.emit('snapshot') }
-  private assert(grant: Grant, task: CoreTask) {
+  private mainHome(agent: ReturnType<typeof this.source.agents.get>) {
+    return agent?.role === 'coordinator' && !agent.pilot && !!this.source.space(agent.space)?.home && agent.machine === this.source.localMachineId()
+  }
+  private assert(grant: Grant, task: CoreTask, cross = false) {
     const agent = this.source.agents.get(grant.chat)
     if (this.source.store.get<CoreSpace>('space', task.place)?.removed || this.source.places?.removing(task.place)) throw new Refusal('This space is removed or being removed; add it again before changing its tasks')
-    if (!agent || agent.launch !== grant.session || agent.grant !== grant.id || agent.machine !== task.machine ||
-      !(grant.chat === task.chat || (agent.role === 'coordinator' && agent.space === task.place))) throw new Refusal('This session does not own that task')
+    if (!agent || agent.launch !== grant.session || agent.grant !== grant.id) throw new Refusal('This session does not own that task')
+    if (cross && agent.machine === grant.machine && this.mainHome(agent)) return
+    if (agent.machine !== task.machine || !(grant.chat === task.chat || (agent.role === 'coordinator' && agent.space === task.place))) throw new Refusal('This session does not own that task')
   }
   view(task: CoreTask): Task {
     const agent = this.source.agents.get(task.chat)
@@ -190,7 +194,7 @@ export class CoreTasks {
     return this.change(id, async () => {
       const task = this.get(id)
       if (!task) throw new Refusal('No such task')
-      this.assert(grant, task)
+      this.assert(grant, task, true)
       const caller = this.source.agents.get(grant.chat)!
       if (caller.role !== 'coordinator') throw new Refusal('Only the coordinator can start a task')
       if (task.archived || ['merged', 'closed', 'merging'].includes(task.workflow)) throw new Refusal('Unarchive an open task before starting it')
@@ -818,7 +822,7 @@ export class CoreTasks {
     const caller = this.source.agents.get(grant.chat)
     if (!caller || caller.launch !== grant.session || caller.grant !== grant.id || caller.machine !== grant.machine) throw new Refusal('This session is no longer current')
     const home = this.source.space(caller.space)?.home && caller.role === 'coordinator' && !caller.pilot
-    const global = home && caller.machine === this.source.localMachineId()
+    const global = this.mainHome(caller)
     return { caller, allows: (place: string, machine: string) => !!(global || home && machine === caller.machine || machine === caller.machine && place === caller.space) }
   }
   private readable(grant: Grant) {
@@ -909,7 +913,7 @@ export class CoreTasks {
       const limit = Number(one(parsed, 'limit') || 20)
       return text(this.chatPage(task, limit, one(parsed, 'before')))
     }
-    this.assert(grant, task)
+    this.assert(grant, task, verb === 'task' && ['start', 'tell', 'queue'].includes(sub))
     if (verb === 'task' && ['close', 'delete', 'archive', 'unarchive', 'pause', 'pin', 'unpin'].includes(sub)) {
       if (this.source.agents.get(grant.chat)?.role !== 'coordinator') throw new Refusal('Only a coordinator changes this task control, when the human asks')
       if (sub === 'close') { const summary = summaryOpts(parsed), result = await this.close(task, parsed.flags.has('force'), summary.said, summary.facts); return { ...text(result), code: result.ok ? 0 : 1 } }

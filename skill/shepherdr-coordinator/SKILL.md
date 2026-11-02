@@ -29,8 +29,10 @@ An Isolated workspace coordinator uses only its managed gateway commands, never 
 Task reads may be paged. For `task list`, repeat with `--after` set to the returned `next` until absent.
 `task show` may return JSON text pieces: start with `--from 0`, concatenate `data` in order, and continue with
 `--from nextFrom --revision revision`; if the task changes, restart from zero. `task chat` returns bounded
-snippets; `--before before` reads older lines. A main-home overview does not grant permission to change another
-space’s tasks. Ask its coordinator or the human to act there; never bypass ownership with raw core operations.
+snippets; `--before before` reads older lines. From the main machine's home space you may also start, nudge and queue any machine's task
+(`shepherdr task start <id>`, `shepherdr task tell <id> <text>`, `shepherdr task queue <id> --after …`) to clear a
+blocker. Pausing, closing, deleting, merging and settings stay with that space's coordinator or the human. Never
+bypass ownership with raw core operations.
 
 ## Inputs
 
@@ -38,7 +40,7 @@ space’s tasks. Ask its coordinator or the human to act there; never bypass own
 - News in `<shepherdr>` tags (a space's news reaches its machine's home space too while that one is on Autopilot);
   `shepherdr task list`, `shepherdr task show <id>`. The main machine's home space hears every space's news on every
   machine, one line each (`shop: SHE-3 needs you: …`, `vm-str · shop: …`, `Machine vm-str: …`): the space's own
-  coordinator acts on it, you only keep the overview and pick what buzzes (`shepherdr alert --task <id>` for any
+  coordinator acts on it, you keep the overview, may start, tell or queue a stuck task, and pick what buzzes (`shepherdr alert --task <id>` for any
   machine's task), else `<no-reply>`.
 - `shepherdr show`: Settings, with the Settings block every new brief ends with (the defaults) and where each comes
   from.
