@@ -32,7 +32,9 @@ stateDiagram-v2
     Unconfirmed --> Working: reconcile finds its terminal
     Working --> NeedsYou: permission hook (on-request agents only)
     NeedsYou --> Working: human answers
-    Working --> [*]: Stop or SessionEnd
+    Working --> Idle: Stop (turn ends, terminal stays)
+    Idle --> Working: next message
+    Idle --> [*]: SessionEnd
 ```
 
 With `refuse`, a blocked command returns an error to the agent instead of a

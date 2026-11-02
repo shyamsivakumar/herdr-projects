@@ -150,7 +150,7 @@ export class CoreAgents {
         else {
           const own = role === 'task'
           argv.push('--sandbox', 'workspace-write', '--ask-for-approval', own && this.settings?.get('task.escalations', space.id) !== 'ask me' ? 'never' : 'on-request', '-c', 'sandbox_workspace_write.network_access=true')
-          if (own) argv.push('-c', `sandbox_workspace_write.writable_roots=[${writableRoots(this.settings?.get('task.writableRoots', space.id) ?? '', remote?.home ?? homedir(), remote ? undefined : realpathSync(tmpdir())).map(toml).join(',')}]`)
+          if (own) argv.push('-c', `sandbox_workspace_write.writable_roots=[${writableRoots(this.settings?.get('task.writableRoots', space.id) ?? '', remote?.home ?? homedir(), remote || process.platform !== 'darwin' ? undefined : realpathSync(tmpdir())).map(toml).join(',')}]`)
         }
       }
 
