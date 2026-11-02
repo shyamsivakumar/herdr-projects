@@ -248,13 +248,15 @@ export interface Automation {
   brief?: string
   /** off: paused */
   on: boolean
+  /** on: its runs add a task even while one it added is still open */
+  overlap?: boolean
   /** its trigger as kept, for agents: its time rule (an RRULE, or "once …") and its event rules ("ready, merged") */
   time?: string
   events?: string
   /** its next runs by its time rule, in words ("Tomorrow 9:00"); none while paused or without one */
   next: string[]
-  /** its latest runs, newest first: when (ms), and the task it added or why it couldn't */
-  runs: { at: number; task?: string; error?: string }[]
+  /** its latest runs, newest first: when (ms), and the task it added, why it couldn't, or the open task it skipped for */
+  runs: { at: number; task?: string; error?: string; skipped?: string }[]
 }
 
 /** A question card: built-in choice cards, a CLI's own menus, plans. */

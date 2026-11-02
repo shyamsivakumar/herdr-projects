@@ -771,6 +771,8 @@ function AutomationDetail({ id, place, a }: { id: string; place: Place; a: Autom
                     <button type="button" className="press-dim text-focus hover:underline" onClick={() => openTask(r.task!)}>
                       {r.task}
                     </button>
+                  ) : r.skipped ? (
+                    <span>skipped: {r.skipped}</span>
                   ) : (
                     <span className="text-need">failed: {r.error}</span>
                   )}

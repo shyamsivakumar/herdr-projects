@@ -1,6 +1,7 @@
 // Automations, as OpenClaw's cron jobs: a space's task template (a title, a brief, and the agent, model and effort it
 // starts with) and its trigger (trigger.ts): a time rule, event rules (a task is added, is ready, went wrong, needs you,
-// is merged, stalls; main goes red), or both. Each run adds a new task with a fresh agent of its own; it never runs in
+// is merged, stalls; main goes red), or both. Each run adds a new task with a fresh agent of its own, unless a task it
+// added earlier is still open (not merged or closed): then the run is skipped and logged, unless overlap is on. It never runs in
 // the coordinator's chat (that is Autopilot's heartbeat, heartbeat.ts, on the same kind of trigger).
 import { randomUUID } from 'node:crypto'
 import type { Automation as AutomationView } from '../shared/types.ts'
@@ -23,13 +24,15 @@ export interface Automation {
   task: Template
   /** off: paused (a once rule turns itself off once it ran) */
   on: boolean
+  /** on: a run adds its task even while a task it added earlier is still open; off (default): that run is skipped */
+  overlap?: boolean
   /** when it was made, or its time rule last changed: its first run is the rule's first after it */
   since?: number
   /** its last run by its time rule: the next is the rule's first after it (a run on an event or by hand moves it not) */
   timed?: number
   last?: number
-  /** its latest runs, oldest first: when, and the task it added or why it couldn't */
-  runs?: { at: number; task?: string; error?: string }[]
+  /** its latest runs, oldest first: when, and the task it added, why it couldn't, or the open task it skipped for */
+  runs?: { at: number; task?: string; error?: string; skipped?: string }[]
 }
 
 /** runs kept for each automation */
@@ -71,7 +74,7 @@ export class Automations {
   }
 
   /** a new one, or one of the same name made again (its runs are kept) */
-  add(a: Pick<Automation, 'place' | 'name' | 'trigger' | 'task'>, now = Date.now()) {
+  add(a: Pick<Automation, 'place' | 'name' | 'trigger' | 'task'> & { overlap?: boolean }, now = Date.now()) {
     check(a)
     const was = this.find(a.place, a.name)
     const x: Automation = { id: was?.id ?? randomUUID().slice(0, 8), on: true, ...a, since: now, ...(was?.runs ? { runs: was.runs } : {}) }
@@ -81,7 +84,7 @@ export class Automations {
   }
 
   /** change some of what it is: a new time rule or new event rules take the old ones' place */
-  edit(place: string, name: string, c: { name?: string; time?: string; on?: EventRule[]; task?: Partial<Template> }, now = Date.now()) {
+  edit(place: string, name: string, c: { name?: string; time?: string; on?: EventRule[]; task?: Partial<Template>; overlap?: boolean }, now = Date.now()) {
     const a = this.find(place, name)
     if (!a) throw new Error(`No automation “${name}” here`)
     if (c.name && c.name !== name && this.find(place, c.name)) throw new Error(`There is an automation “${c.name}” already`)
@@ -94,7 +97,7 @@ export class Automations {
       if (c.on.length) trigger.on = c.on
       else delete trigger.on
     }
-    const next: Automation = { ...a, ...(c.name ? { name: c.name } : {}), trigger, task: { ...a.task, ...c.task } }
+    const next: Automation = { ...a, ...(c.name ? { name: c.name } : {}), ...(c.overlap !== undefined ? { overlap: c.overlap } : {}), trigger, task: { ...a.task, ...c.task } }
     check(next)
     Object.assign(a, next)
     // a new time rule counts from now: a once that ran, given a new time, runs again
@@ -131,6 +134,7 @@ export class Automations {
         what: a.task.title,
         ...(a.task.desc ? { brief: a.task.desc } : {}),
         on: a.on,
+        ...(a.overlap ? { overlap: true } : {}),
         ...(a.trigger.time ? { time: a.trigger.time } : {}),
         ...(a.trigger.on?.length ? { events: eventsText(a.trigger.on) } : {}),
         next: a.on ? nextWords(a.trigger.time, zone, now) : [],
@@ -165,7 +169,7 @@ export class Automations {
   }
 
   /** it ran (timed: by its time rule): the task it added, or why it couldn't. A once is over once it ran on time. */
-  fired(a: Automation, r: { task?: string; error?: string }, now = Date.now(), timed = false) {
+  fired(a: Automation, r: { task?: string; error?: string; skipped?: string }, now = Date.now(), timed = false) {
     a.last = now
     if (timed) a.timed = now
     a.runs = [...(a.runs ?? []), { at: a.last, ...r }].slice(-RUNS)

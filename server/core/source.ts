@@ -548,7 +548,7 @@ export class CoreSource extends Emitter<SourceEvents> implements Source {
   ready ID --summary TEXT [--facts TEXT]
   merge ID (requires the human's exact-commit card approval)
   heartbeat [SPACE] | heartbeat set [SPACE] < FILE
-  automation add NAME --task TITLE --brief TEXT --when "FREQ=MINUTELY;INTERVAL=30" | --on EVENTS [--space NAME]
+  automation add NAME --task TITLE --brief TEXT --when "FREQ=MINUTELY;INTERVAL=30" | --on EVENTS [--overlap on|off] [--space NAME]
   automation edit|list|pause|resume|run|remove NAME
   todo ID | task close ID
   artifact new FILE --title TITLE | update ID [FILE] [--data JSON] | check FILE | show ID | list | remove ID
