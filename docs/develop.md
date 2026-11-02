@@ -35,3 +35,5 @@ they do not replace real native-agent or device acceptance.
 Task IDs and workflow records live in the selected application's private SQLite
 store. Prefix/next-number changes are per repository space and only move forward.
 No 2.0 JSON/task-ID import is performed. See [state and cutover](core/cutover.md).
+
+How Shepherdr starts each agent CLI, and the plan for more of them: [agent providers](agent-providers.md).
