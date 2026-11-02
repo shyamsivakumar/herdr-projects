@@ -30,7 +30,8 @@
   (`vm-str:SHE-12`), from the main machine's home space. If one it waits for is stopped or goes wrong, the queued task needs
   you, saying which; it goes back to waiting once that task is going again. Want it started early? Just write to it:
   its agent decides from your words, and clears its queue itself when they are a go (a note leaves it queued).
-- A task's dot comes from its agent alone: Working, Needs you (it asks, or waits for your reply), Queued (it waits
+- A task's dot comes from its agent alone: Working, Needs you (it asks, or waits for your reply), Waiting (its turn ended and its last `shepherdr status`
+  says it waits on a gate, check, review, rebase or another task: no alert, and Notify's Needs me stays quiet), Queued (it waits
   for other tasks), To do (it waits for a go, or is still starting up; a To do row is its title alone), Ready
   (`shepherdr ready`: finished, waits for you to merge it), Merging (`shepherdr merge` under way: GitHub's checks run,
   a rebase or the merge itself, nothing for you to do) and Done (`shepherdr merge`: Merged, or closed: Nothing to merge). The list and the task's chat always show

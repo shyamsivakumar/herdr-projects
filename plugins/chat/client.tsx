@@ -1026,7 +1026,7 @@ function Row({ at, arrive, children }: { at: number; arrive: string; children: R
   )
 }
 
-const NOW: Record<string, string> = { done: 'done', work: 'working', ready: 'ready', merging: 'merging', queued: 'queued' }
+const NOW: Record<string, string> = { done: 'done', work: 'working', wait: 'waiting', ready: 'ready', merging: 'merging', queued: 'queued' }
 
 const cardBox = 'relative flex max-w-full items-center gap-2 self-start rounded-box px-3 py-2 text-left text-[0.9375rem] shadow-[inset_0_0_0_1px_var(--line2)]'
 /** the card's words on one line: cut short with an ellipsis where the chat is narrow, what follows them kept whole */

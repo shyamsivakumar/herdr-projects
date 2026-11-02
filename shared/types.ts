@@ -3,8 +3,8 @@
 import type { BrowserNote } from './browser.ts'
 
 /** Status marks: red needs you, green ready, green turning ring merging, amber working, grey ring idle or to do, grey
- * clock queued, grey check done, dashed ring unreachable. */
-export type Status = 'need' | 'ready' | 'merging' | 'work' | 'idle' | 'queued' | 'todo' | 'done' | 'off'
+ * clock waiting (on a gate, check, review, rebase or another task) or queued, grey check done, dashed ring unreachable. */
+export type Status = 'need' | 'ready' | 'merging' | 'work' | 'wait' | 'idle' | 'queued' | 'todo' | 'done' | 'off'
 /** A chat's final segment is its role; the task ID may itself contain a machine qualifier. */
 export function taskChatId(chat: string) { const at = chat.lastIndexOf('/'); return at < 0 ? undefined : chat.slice(0, at) }
 
@@ -178,10 +178,11 @@ export interface Report {
 }
 
 /** need: its agent asks or waits for you; ready: finished, waits for you to merge it; merging: finished and on its way
- * into main, nothing for you to do (GitHub's checks run, it is rebased or merged); work: its agent is at it; queued:
+ * into main, nothing for you to do (GitHub's checks run, it is rebased or merged); work: its agent is at it; wait: its agent ended its turn and
+ * reports it waits on a gate, check, review, rebase or another task, nothing for you to do; queued:
  * it waits for other tasks to be done, then Shepherdr tells its agent to go; todo: its agent waits for a go, or is
  * starting and not yet at work on its brief; done: merged */
-export type TaskStatus = 'need' | 'ready' | 'merging' | 'work' | 'queued' | 'todo' | 'done'
+export type TaskStatus = 'need' | 'ready' | 'merging' | 'work' | 'wait' | 'queued' | 'todo' | 'done'
 
 /** A task's one agent: tapping the task opens its chat. */
 export interface TaskAgent {
