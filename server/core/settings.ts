@@ -1,3 +1,4 @@
+import { join, resolve } from 'node:path'
 import type { SettingRow, SettingSection, RestartCli } from '../../shared/types.ts'
 import { TABLE, nearest, parseCodex, type CliModels } from '../../shared/models.ts'
 import type { CoreStore } from './store.ts'
@@ -13,6 +14,11 @@ export type Role = 'coordinator' | 'task' | 'reviewer' | 'backup'
 export const CLI_NAME = { claude: 'Claude Code', codex: 'Codex' }
 const names = CLI_NAME
 export const kindOf = (word: string): AgentKind | undefined => Object.entries(names).find(([kind, name]) => [kind, name.toLowerCase()].includes(word.trim().toLowerCase()))?.[0] as AgentKind | undefined
+const rootEntries = (value: string) => value.split(/[,\n]/).map(item => item.trim()).filter(Boolean)
+export function writableRoots(value: string, home: string, tmp: string | undefined): string[] {
+  const out = rootEntries(value).flatMap(item => item.startsWith('~/') ? [join(home, item.slice(2))] : item.startsWith('$TMPDIR') ? tmp ? [tmp + item.slice(7)] : [] : [item])
+  return [...new Set(out.map(item => resolve(item)))]
+}
 const roleRows = (role: Role, group: string): SettingRow[] => [
   { group, key: `${role}.agent`, label: 'Agent', value: role === 'reviewer' ? 'Codex' : 'Claude Code', options: Object.values(names) },
   { group, key: `${role}.model`, label: 'Model', value: 'default', text: true },
@@ -50,7 +56,10 @@ const CATALOG: SettingSection[] = [
     { key: 'brief.merge', label: 'Merge', value: 'on its own', options: ['on its own', 'after GitHub checks', 'ask me first'] },
     ...roleRows('reviewer', 'Reviewer'),
   ] },
-  { name: 'Agents', about: "What each kind of agent starts with. Default is the agent's own model or effort. Backup takes a task over when its agent can't go on. Chat choices need a chat log reader; other installed CLIs cannot show replies here. Headless review is separate.", rows: [...roleRows('task', 'Tasks'), ...roleRows('coordinator', 'Coordinators'),
+  { name: 'Agents', about: "What each kind of agent starts with. Default is the agent's own model or effort. Backup takes a task over when its agent can't go on. Chat choices need a chat log reader; other installed CLIs cannot show replies here. Headless review is separate. Codex task agents may also write the listed folders besides their worktree; refuse means a command the sandbox blocks fails back to the agent instead of waiting for you.", rows: [...roleRows('task', 'Tasks'),
+    { group: 'Tasks', key: 'task.writableRoots', label: 'Codex can also write', value: '~/.local/state/mac-ops, ~/.shepherdr, ~/.railway, ~/.config/gh, /private/tmp, $TMPDIR/..', text: true },
+    { group: 'Tasks', key: 'task.escalations', label: 'Codex escalations', value: 'refuse', options: ['refuse', 'ask me'] },
+    ...roleRows('coordinator', 'Coordinators'),
     { group: 'Backup', key: 'task.fallback', label: 'Agent', value: 'Codex', options: ['off', ...Object.values(names)] },
     { group: 'Backup', key: 'backup.model', label: 'Model', value: 'default', text: true },
     { group: 'Backup', key: 'backup.effort', label: 'Effort', value: 'default', options: ['default', ...TABLE.codex.efforts] },
@@ -89,9 +98,15 @@ export class CoreSettings {
     if (key.startsWith('machine.') && level !== 'all' && !level.startsWith('m:')) throw new Error('Machine limits apply Everywhere or to a machine')
     if (key === 'time.zone' && level !== 'all') throw new Error('Time zone applies Everywhere')
     if (value !== null) {
-      if (typeof value !== 'string' || value.length > (row.multiline ? 32_000 : key === 'autopilot.hosts' ? 32768 : key === 'autopilot.secrets' ? 16384 : 512)) throw new Error('Setting is too long')
+      if (typeof value !== 'string' || value.length > (row.multiline ? 32_000 : key === 'autopilot.hosts' ? 32768 : key === 'task.writableRoots' ? 4096 : key === 'autopilot.secrets' ? 16384 : 512)) throw new Error('Setting is too long')
       if (key === 'time.zone') value = value.trim()
       if (key === 'time.zone' && !validZone(value)) throw new Error('Choose a valid time zone, such as Europe/Stockholm')
+      if (key === 'task.writableRoots') {
+        const entries = rootEntries(value)
+        if (entries.length === 1 && entries[0]!.toLowerCase() === 'none') entries.length = 0
+        if (entries.some(item => !/^(\/|~\/|\$TMPDIR)/.test(item) || /["'`]/.test(item))) throw new Error('List folders as absolute paths, ~/ paths or $TMPDIR, separated by commas')
+        value = entries.join(', ')
+      }
       if (key === 'heartbeat.when') value = timeRule(value)
       if (key === 'heartbeat.on') { eventRules(value) }
       if (key === 'autopilot.hosts') value = pilotHosts(value.split(/[\s,]+/).filter(Boolean)).join(', ')

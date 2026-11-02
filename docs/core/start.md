@@ -234,6 +234,23 @@ write restrictions are not a security boundary against an ordinary agent that ca
 workspace profile when an enforced host/network boundary is required; its outer gateway/allowlist remains separate.
 Read-only reviewers keep their read-only native mode and do not receive this networking override.
 
+Codex task agents (and backup agents, which run as tasks) get two more per-launch settings from Settings → Agents →
+Tasks, picked space > machine > Everywhere:
+
+- **Codex can also write** (`task.writableRoots`) becomes `-c sandbox_workspace_write.writable_roots=[…]`. The default
+  is `~/.local/state/mac-ops, ~/.shepherdr, ~/.railway, ~/.config/gh, /private/tmp, $TMPDIR/..`: the heavy queue
+  state, Shepherdr's own home, the Railway and GitHub CLI logins, `/private/tmp` and the parent of the macOS
+  per-user temp folder. `~/` expands to the agent machine's home. `$TMPDIR` expands to the core's own real temp
+  folder on the main machine and is left out on other machines. `none` (or an empty value) passes no extra roots.
+  Every other folder outside the worktree stays read-only.
+- **Codex escalations** (`task.escalations`): `refuse` (the default) launches with `--ask-for-approval never`, so a
+  command the sandbox blocks fails back to the agent, which works around it or reports it, and the task never sits
+  in Needs you on an approval prompt. `ask me` keeps `on-request`, so approvals reach the chat as before.
+
+Coordinators keep `on-request` and no extra roots. Nothing is written to `~/.codex/config.toml`, so the human's own
+interactive Codex keeps its own settings; a `writable_roots` list there is replaced, not merged, for task launches.
+The launch flow is in [the agent launch state chart](../state-charts/agent-launch.md).
+
 The setting is per launch, not written to the human’s Codex configuration. Managed Codex requirements still apply;
 an incompatible managed policy must be resolved by the operator, never bypassed. See the official
 [approval/security configuration](https://learn.chatgpt.com/docs/agent-approvals-security) and pinned
