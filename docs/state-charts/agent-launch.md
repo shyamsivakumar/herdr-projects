@@ -20,14 +20,16 @@ stateDiagram-v2
     state Task {
         [*] --> Roots: Claude Code keeps its own settings
         [*] --> Roots: Codex workspace-write, network on
-        Roots --> Escalations: writable_roots from task.writableRoots (none: nothing)
+        Roots --> Escalations: writable_roots from task.writableRoots (none: an empty list)
         Escalations --> [*]: refuse gives never, ask me gives on-request
     }
     Task --> Submitted
 
     Submitted --> Working: core terminal.run returns
-    Submitted --> RolledBack: core refuses before submit
+    Prepared --> RolledBack: preparation fails before submit
     RolledBack --> [*]: previous record restored, grant revoked
+    Submitted --> Unconfirmed: core call fails after submit
+    Unconfirmed --> Working: reconcile finds its terminal
     Working --> NeedsYou: permission hook (on-request agents only)
     NeedsYou --> Working: human answers
     Working --> [*]: Stop or SessionEnd

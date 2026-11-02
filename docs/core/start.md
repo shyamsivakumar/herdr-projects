@@ -241,7 +241,7 @@ Tasks, picked space > machine > Everywhere:
   is `~/.local/state/mac-ops, ~/.shepherdr, ~/.railway, ~/.config/gh, /private/tmp, $TMPDIR/..`: the heavy queue
   state, Shepherdr's own home, the Railway and GitHub CLI logins, `/private/tmp` and the parent of the macOS
   per-user temp folder. `~/` expands to the agent machine's home. `$TMPDIR` expands to the core's own real temp
-  folder on the main machine and is left out on other machines. `none` (or an empty value) passes no extra roots.
+  folder on the main machine and is left out on other machines. `none` (or an empty value) passes an empty list, which also clears any list in the human's Codex configuration.
   Every other folder outside the worktree stays read-only.
 - **Codex escalations** (`task.escalations`): `refuse` (the default) launches with `--ask-for-approval never`, so a
   command the sandbox blocks fails back to the agent, which works around it or reports it, and the task never sits
