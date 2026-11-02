@@ -65,7 +65,7 @@ test('restart settles an interrupted claim without launching twice and shutdown 
 
 
 test('two matching events in one scan each keep a durable run while one automation is busy', async () => fixture(async ({ source, scheduler, launches, tasks, space }) => {
-  scheduler.model.add({ place: space.id, name: 'ready', trigger: { on: [{ event: 'ready' }] }, task: { title: 'Check each' } })
+  scheduler.model.add({ place: space.id, name: 'ready', trigger: { on: [{ event: 'ready' }] }, task: { title: 'Check each' }, overlap: true })
   const first = { id: 'HUMAN-1', name: 'First', place: space.id, workflow: 'working', status: 'work' } as CoreTask
   const second = { ...first, id: 'HUMAN-2', name: 'Second' }
   tasks.push(first, second)
@@ -112,7 +112,7 @@ test('confirmed failures emit once across restart; intentional To-do stops and o
 }))
 
 test('quiet and over-estimate stalls persist and re-arm only with new activity or a new report', async () => fixture(async ({ source, scheduler, tasks, launches, space }) => {
-  scheduler.model.add({ place: space.id, name: 'stall', trigger: { on: [{ event: 'stalled' }] }, task: { title: 'Inspect stall' } })
+  scheduler.model.add({ place: space.id, name: 'stall', trigger: { on: [{ event: 'stalled' }] }, task: { title: 'Inspect stall' }, overlap: true })
   const start = 1000000, agent = { launch: 'live', started: start, activityAt: start }, terminal = { state: 'live' }
   const task = { id: 'SLOW-1', chat: 'SLOW-1/Agent', place: space.id, machine: space.machine, name: 'Slow', workflow: 'working', status: 'work', reportedAt: start, report: { eta: 1, msg: 'Working', progress: 1 } } as CoreTask
   tasks.push(task)
@@ -130,7 +130,7 @@ test('quiet and over-estimate stalls persist and re-arm only with new activity o
 }))
 
 test('identical setup errors are new failures only for a new accepted launch attempt', async () => fixture(async ({ source, scheduler, tasks, launches, space }) => {
-  scheduler.model.add({ place: space.id, name: 'setup', trigger: { on: [{ event: 'failed' }] }, task: { title: 'Investigate setup' } })
+  scheduler.model.add({ place: space.id, name: 'setup', trigger: { on: [{ event: 'failed' }] }, task: { title: 'Investigate setup' }, overlap: true })
   const task = { id: 'SETUP-1', place: space.id, machine: space.machine, name: 'Setup', workflow: 'todo', status: 'need', startError: 'Same failure', launchAttempt: 'first' } as CoreTask
   tasks.push(task)
   await scheduler.scan(); await scheduler.drain(); expect(launches).toHaveLength(1)

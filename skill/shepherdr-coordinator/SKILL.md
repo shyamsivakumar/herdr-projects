@@ -104,7 +104,9 @@ space’s tasks. Ask its coordinator or the human to act there; never bypass own
 8. **Automations**: `shepherdr automation add "<name>" --task "<title>" --brief "<brief>" [--when "<time rule>"]
    [--on "<events>"]` adds that task to the space on its trigger, each time with a fresh agent of its own; a brief as
    full as any task's. `edit`, `pause`, `resume`, `run`, `remove`, `list` (`shepherdr help`). Only on the human's word;
-   for recurring checks of your own, use HEARTBEAT.md.
+   for recurring checks of your own, use HEARTBEAT.md. While a task an automation added is still open (not merged
+   or closed), each of its runs (timed, event or `run`) is skipped and listed as `skipped` with that task's id; close
+   or merge it and the next run adds one. `--overlap on` lets runs pile up anyway, only on the human's word.
 9. **Triggers from words**: automations and the heartbeat share one trigger: a time rule, event rules, or both. The
    human never writes or reads a rule: turn their words into one, and tell them back the words Shepherdr prints with
    the next runs, so they can see it is what they meant.

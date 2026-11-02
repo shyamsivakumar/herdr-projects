@@ -12,7 +12,7 @@ import type { TaskNewsEvent, StallCause } from './news.ts'
 
 const checked = <T>(run: () => T): T => { try { return run() } catch (error) { throw new Refusal((error as Error).message) } }
 
-interface Run { id: string; automation: string; place: string; at: number; timed: boolean; state: 'queued' | 'starting' | 'done'; task?: string; error?: string }
+interface Run { id: string; automation: string; place: string; at: number; timed: boolean; state: 'queued' | 'starting' | 'done'; task?: string; error?: string; skipped?: string }
 interface Seen { at?: number; id: string; place: string; workflow: string; status: string; failure?: string; quietLife?: number; overReport?: number }
 
 /** Product schedules persist beside task records; all task launches still go through core. */
@@ -51,9 +51,24 @@ export class CoreAutomations {
     }
     this.source.emit('snapshot')
   }
+  /** a task an earlier run of this automation added (even one whose launch failed) that is not merged or closed yet */
+  private openTask(automation: Automation) {
+    const runs = new Set(this.source.store.all<Run>('automation-run').filter(run => run.automation === automation.id).map(run => run.id))
+    return this.source.tasks.all().find(task => task.automation && runs.has(task.automation) && task.workflow !== 'merged' && task.workflow !== 'closed')
+  }
   async fire(automation: Automation, timed = false, queued?: Run) {
     if (this.stopped || this.source.quiescing) throw new Refusal('Shepherdr is stopping; retry after reconnecting')
     if (this.busy.has(automation.id)) throw new Refusal('This automation is already starting a task')
+    const open = automation.overlap ? undefined : this.openTask(automation)
+    if (open) {
+      const skipped = `${open.id} is still open`, at = Date.now()
+      this.source.store.db.transaction(() => {
+        if (queued) this.source.store.set('automation-run', queued.id, { ...queued, at, state: 'done', skipped })
+        this.model.fired(automation, { skipped }, at, timed)
+      })()
+      this.source.emit('snapshot')
+      return { skipped }
+    }
     this.busy.add(automation.id)
     const run: Run = queued ? { ...queued, at: Date.now(), state: 'starting' } : { id: randomUUID(), automation: automation.id, place: automation.place, at: Date.now(), timed, state: 'starting' }
     // Claim and advance its time cursor before any remote work. A lost response cannot launch it twice.
@@ -175,7 +190,7 @@ export class CoreAutomations {
     if (agent.role !== 'coordinator') throw new Refusal('Only a coordinator can manage automations')
     const parsed = parseArgs(args.slice(1)), [op = 'list', ...rest] = parsed.words, name = rest.join(' '), requested = one(parsed, 'space')
     const space = requested ? findCoreSpace(this.source, agent.machine, requested) : this.source.space(agent.space)
-    if (op === 'list') return this.model.list.filter(item => { const s = this.source.space(item.place); return s?.machine === agent.machine && (!requested || s.id === space?.id) }).map(item => `${item.name} · ${triggerWords(item.trigger, this.zone())} · adds “${item.task.title}”${item.on ? '' : ' · paused'} · ${JSON.stringify(item.runs ?? [])}`).join('\n') || 'No automations.'
+    if (op === 'list') return this.model.list.filter(item => { const s = this.source.space(item.place); return s?.machine === agent.machine && (!requested || s.id === space?.id) }).map(item => `${item.name} · ${triggerWords(item.trigger, this.zone())} · adds “${item.task.title}”${item.on ? '' : ' · paused'}${item.overlap ? ' · overlap on' : ''} · ${JSON.stringify(item.runs ?? [])}`).join('\n') || 'No automations.'
     if (!space || space.home) throw new Refusal('Choose a repository space with --space NAME')
     if (!name.trim() || name.length > 120) throw new Refusal('Give the automation a name of at most 120 characters')
     if (op === 'add' || op === 'edit') {
@@ -184,12 +199,14 @@ export class CoreAutomations {
       const when = one(parsed, 'when'), on = one(parsed, 'on'), title = one(parsed, 'task'), brief = one(parsed, 'brief')
       if (title !== undefined && (!title.trim() || title.length > TITLE_MAX)) throw new Refusal(`Write a task title of at most ${TITLE_MAX} characters`)
       if (brief && brief.length > 100_000) throw new Refusal('The brief is too long')
-      const kind = one(parsed, 'agent'), model = one(parsed, 'model'), effort = one(parsed, 'effort')
+      const kind = one(parsed, 'agent'), model = one(parsed, 'model'), effort = one(parsed, 'effort'), overlapWord = one(parsed, 'overlap')
       if (kind && !kindOf(kind)) throw new Refusal('Choose Claude Code or Codex')
+      if (overlapWord !== undefined && overlapWord !== 'on' && overlapWord !== 'off') throw new Refusal('Use --overlap on or --overlap off')
+      const overlap = overlapWord === undefined ? undefined : overlapWord === 'on'
       const pick: Template['agent'] = kind || model || effort ? { kind, model, effort } : undefined
       if (op === 'add') {
-        checked(() => this.model.add({ place: space.id, name, trigger: { ...(when && when !== 'off' ? { time: timeRule(when) } : {}), ...(on ? { on: eventRules(on) } : {}) }, task: { title: title || '', desc: brief, agent: pick } }))
-      } else checked(() => this.model.edit(space.id, name, { name: one(parsed, 'name'), time: when === undefined ? undefined : when === 'off' ? 'off' : timeRule(when), on: on === undefined ? undefined : eventRules(on), task: { ...(title !== undefined ? { title } : {}), ...(brief !== undefined ? { desc: brief } : {}), ...(pick ? { agent: pick } : {}) } }))
+        checked(() => this.model.add({ place: space.id, name, trigger: { ...(when && when !== 'off' ? { time: timeRule(when) } : {}), ...(on ? { on: eventRules(on) } : {}) }, task: { title: title || '', desc: brief, agent: pick }, ...(overlap ? { overlap } : {}) }))
+      } else checked(() => this.model.edit(space.id, name, { name: one(parsed, 'name'), time: when === undefined ? undefined : when === 'off' ? 'off' : timeRule(when), on: on === undefined ? undefined : eventRules(on), task: { ...(title !== undefined ? { title } : {}), ...(brief !== undefined ? { desc: brief } : {}), ...(pick ? { agent: pick } : {}) }, overlap }))
       this.source.emit('snapshot'); return `Saved: ${one(parsed, 'name') || name}`
     }
     if (!['pause', 'resume', 'run', 'remove'].includes(op)) throw new Refusal('Use automation add|edit|list|pause|resume|run|remove')
