@@ -1,5 +1,5 @@
-import { homedir } from 'node:os'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import type { CoreConfig } from './config.ts'
@@ -12,7 +12,7 @@ import type { Installation } from './home.ts'
 import { CoreFiles } from './files.ts'
 import { CoreRemotes } from './remote.ts'
 import { browserNamespace, browserSession as sessionForBrowser } from './browser-id.ts'
-import type { CoreSettings } from './settings.ts'
+import { writableRoots, type CoreSettings } from './settings.ts'
 import { CorePilotRepositories } from './pilot-repositories.ts'
 import type { PilotPrepared, PilotLaunch } from '../../helper/core-pilot-launch.ts'
 
@@ -147,7 +147,11 @@ export class CoreAgents {
       else {
         argv.push('--no-daemon', '--no-alt-screen')
         if (options.pilot) argv.push('--dangerously-bypass-approvals-and-sandbox')
-        else argv.push('--sandbox', 'workspace-write', '--ask-for-approval', 'on-request', '-c', 'sandbox_workspace_write.network_access=true')
+        else {
+          const own = role === 'task'
+          argv.push('--sandbox', 'workspace-write', '--ask-for-approval', own && this.settings?.get('task.escalations', space.id) !== 'ask me' ? 'never' : 'on-request', '-c', 'sandbox_workspace_write.network_access=true')
+          if (own) argv.push('-c', `sandbox_workspace_write.writable_roots=[${writableRoots(this.settings?.get('task.writableRoots', space.id) ?? '', remote?.home ?? homedir(), remote || process.platform !== 'darwin' ? undefined : realpathSync(tmpdir())).map(toml).join(',')}]`)
+        }
       }
 
       for (const event of (headless || options.pilot ? [] : EVENTS).filter(e => !['Notification', 'PostToolUseFailure'].includes(e))) {

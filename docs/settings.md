@@ -5,7 +5,8 @@
   merge), each row offering its exact line under Brief wording. How Shepherdr runs: the agent, model and effort tasks and
   coordinators start with (model:
   an id or alias, or default for the CLI's own; effort: default, lowest, low, medium, high, xhigh or max, each CLI
-  taking it its own way) and tasks' backup agent, when Done tasks archive themselves, Autopilot's heartbeat (its trigger) and checklist, the time zone of every schedule, each machine's limits, the idle browser, Notifications and Voice. Notifications gathers scoped delivery rules and device enrolment; device delivery is Everywhere. Space menus still offer Notify. Its
+  taking it its own way), the folders a Codex task agent may also write and whether its blocked commands fail back
+  to it or ask you ([Ordinary Codex command access](core/start.md#ordinary-codex-command-access)), and tasks' backup agent, when Done tasks archive themselves, Autopilot's heartbeat (its trigger) and checklist, the time zone of every schedule, each machine's limits, the idle browser, Notifications and Voice. Notifications gathers scoped delivery rules and device enrolment; device delivery is Everywhere. Space menus still offer Notify. Its
   defaults are set Everywhere, for a machine or for a space (`shepherdr set <key> <value> [--machine | --space NAME]`, from any machine);
   the most specific one set wins. Editing above the content names the scope; its searchable hierarchy handles many machines and spaces. Values set here are highlighted, with their inherited value, source and Reset beside them. And, kept on each device, its Appearance: System (the device's own light
   or dark), Light or Dark, set before the first paint, with the browser's bar and artifacts following it. A phone
