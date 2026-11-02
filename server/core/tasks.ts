@@ -21,6 +21,10 @@ import { reserveTaskId } from './ids.ts'
 import { taskDependencies } from './dependencies.ts'
 import { archiveAfterMs } from '../../shared/archive.ts'
 
+export const WAITING = /\b(wait(s|ing)?|queued?|gates?|checks?|fast-check|ci|m1|woodpecker|review(s|er|ing)?|rebas(e|ed|ing)|running|pending|after [a-z]+-\d+)\b/i
+export const ASKS_HUMAN = /\b(you|your|human|shyam|approv\w*|access|secrets?|sign[- ]?in|log[- ]?in|credentials?|permissions?|blocked)\b/i
+export const waitsOnWork = (msg?: string) => !!msg && !msg.includes('?') && WAITING.test(msg) && !ASKS_HUMAN.test(msg)
+
 export interface CoreTaskInput {
   title: string; brief: string; space?: string; base?: string; after?: string[]; later?: boolean
   kind?: AgentKind; model?: string; effort?: string; reviewer?: AgentKind; reviewerModel?: string; reviewerEffort?: string
@@ -117,8 +121,9 @@ export class CoreTasks {
     const terminal = agent && this.source.agents.terminal(agent), nativeStatus = agent && this.source.status(agent)
     const waiting = agent && nativeStatus === 'idle' && this.source.logs?.waiting?.(agent)
     const provider = task.workflow === 'working' && agent && this.source.providerRetries?.get(agent)
+    const onlyWaiting = !!waiting && !provider && terminal?.state !== 'finished'
     const status = task.startError ? 'need' : task.workflow === 'merged' || task.workflow === 'closed' ? 'done' : task.workflow === 'ready' ? 'ready' : task.workflow === 'merging' ? 'merging'
-      : task.workflow === 'queued' ? 'queued' : task.workflow === 'todo' || !agent ? 'todo' : nativeStatus === 'need' || waiting && !provider || terminal?.state === 'finished' ? 'need' : 'work'
+      : task.workflow === 'queued' ? 'queued' : task.workflow === 'todo' || !agent ? 'todo' : onlyWaiting && waitsOnWork(task.report?.msg) ? 'wait' : nativeStatus === 'need' || waiting && !provider || terminal?.state === 'finished' ? 'need' : 'work'
     const retryLine = provider ? `${provider.reason}${provider.due ? ` · retry in ${Math.max(1, Math.ceil((provider.due - Date.now()) / 60000))}m` : provider.over ? '' : ' · retrying'}` : undefined
     const created = Date.parse(task.created)
     const observed = this.source.store.get<{ status: string; at?: number }>('automation-seen', task.id)
@@ -127,7 +132,7 @@ export class CoreTasks {
     const taskAge = Number.isFinite(when) && when > 0 ? age(when) : task.age
     const agentAge = agent?.started && Number.isFinite(agent.started) ? age(agent.started) : taskAge
     return { ...task, age: taskAge, on: CLI_NAME[agent?.kind ?? task.kind], status, sub: task.capacity ? `Waiting: ${task.capacity}` : retryLine || task.sub, browser: agent?.browser ? { ready: this.source.machineConnected?.(task.machine) ?? true, hint: this.source.machineConnected?.(task.machine) === false ? 'This machine is reconnecting' : undefined } : { ready: false, hint: 'Start or restart the task agent to provision its shared browser' }, agent: agent ? { chat: task.chat, role: 'Agent', cli: CLI_NAME[agent.kind], status: nativeStatus === 'off' ? 'off' : status, age: agentAge, note: retryLine || task.report?.msg || '' } : undefined,
-      state: status === 'done' ? task.workflow === 'closed' ? 'Done' : 'Merged' : status === 'ready' ? 'Ready' : status === 'need' ? 'Needs you' : status === 'queued' ? 'Queued' : status === 'todo' ? 'To do' : status === 'merging' ? 'Merging' : 'Working' }
+      state: status === 'done' ? task.workflow === 'closed' ? 'Done' : 'Merged' : status === 'ready' ? 'Ready' : status === 'need' ? 'Needs you' : status === 'wait' ? 'Waiting' : status === 'queued' ? 'Queued' : status === 'todo' ? 'To do' : status === 'merging' ? 'Merging' : 'Working' }
   }
   async add(grant: Grant, input: CoreTaskInput) {
     const caller = this.source.agents.get(grant.chat)

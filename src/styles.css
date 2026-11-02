@@ -606,7 +606,7 @@
   initial-value: 50%;
 }
 
-/* Status marks, drawn in CSS: red needs you, green ready, green turning ring with a gap merging, amber working, grey ring idle, grey clock queued, grey
+/* Status marks, drawn in CSS: red needs you, green ready, green turning ring with a gap merging, amber working, grey ring idle, grey clock waiting or queued, grey
    check done, dashed ring a machine Shepherdr can't reach */
 @layer components {
   .dot {
@@ -702,7 +702,8 @@
       transform: rotate(-45deg);
     }
   }
-  /* queued: the grey ring with a clock's two hands, at twelve and three */
+  /* waiting and queued: the grey ring with a clock's two hands, at twelve and three */
+  .dot.wait::after,
   .dot.queued::after {
     content: "";
     position: absolute;

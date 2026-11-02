@@ -503,6 +503,7 @@ const STATUS_WORD: Record<Status, string> = {
   ready: 'Ready',
   merging: 'Merging',
   work: 'Working',
+  wait: 'Waiting',
   idle: 'Stopped',
   queued: 'Queued',
   todo: 'To do',
